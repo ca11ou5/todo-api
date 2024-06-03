@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  todo-list:
+    container_name: todo-list
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - todo-list
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile
+
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    networks:
+      - todo-list
+    environment:
+      - POSTGRES_DB=root
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U root -d root" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    container_name: migrate
+    image: migrate/migrate
+    volumes:
+      - ../internal/repository/postgres/migrations:/migrations
+    command: [ "-path", "/migrations", "-database", "postgres://root:root@postgres:5432/root?sslmode=disable", "up", "1" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - todo-list
+
+
+networks:
+  todo-list:
